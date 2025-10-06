@@ -5,7 +5,7 @@ Everest configuration
 *********************
 
 Everest is configured via a yaml file, using a set of pre-defined keywords that
-are described in more detail in the section :ref:`cha_config_reference`.
+are described in more detail in the section :ref:`_cha_everest_keyword_reference`.
 
 In addition to the standard yaml syntax, Everest also supports the use of
 variables that are replaced with their value when referred in the following
@@ -50,7 +50,7 @@ The value of a variable can be set in three different ways:
 
 .. note::
     Variables are a distinct feature from the yaml keywords defined in section
-    :ref:`cha_config_reference`. The final yaml file used by Everest is produced
+    :ref:`_cha_everest_keyword_reference`. The final yaml file used by Everest is produced
     by pre-processing the config file to replace all variables with their value.
     It is possible to define variables that have the same name as a keyword, but
     this should be done sparingly to avoid confusion.

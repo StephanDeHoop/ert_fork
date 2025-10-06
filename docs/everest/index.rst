@@ -23,11 +23,12 @@ This guide serves as documentation for the *Everest* decision-making tool.
 
 .. toctree::
    :hidden:
+   :maxdepth: 2
    :caption: Reference
 
    cli
    config
-   config_reference
+   keywords
    optimization_backends
    sampler_backends
    forward_model_jobs

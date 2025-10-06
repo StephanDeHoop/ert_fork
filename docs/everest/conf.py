@@ -16,9 +16,6 @@ import sys
 from importlib import metadata
 from pathlib import Path
 
-from json_schema_for_humans.generate import generate_from_filename
-from json_schema_for_humans.generation_configuration import GenerationConfiguration
-
 from everest.config import EverestConfig
 
 sys.path.append(os.path.abspath("_ext"))
@@ -41,28 +38,57 @@ version = ".".join(dist_version.split(".")[:2])
 release = dist_version
 
 
-config = GenerationConfiguration(
-    copy_css=False,
-    expand_buttons=True,
-    link_to_reused_ref=False,
-    show_breadcrumbs=False,
-    examples_as_yaml=True,
-    with_footer=False,
-    collapse_long_descriptions=False,
-    collapse_long_examples=False,
-    description_is_markdown=True,
-    markdown_options={"breaks": {"on_newline": False}},
-    deprecated_from_description=True,
-)
-with open("config_schema.json", "w", encoding="utf-8") as fout:
-    json.dump(EverestConfig.model_json_schema(), fout)
+def _write_everest_schema(app) -> None:
+    out = Path(__file__).parent / "_static" / "everest.schema.json"
+    out.parent.mkdir(exist_ok=True)
+    out.write_text(json.dumps(EverestConfig.model_json_schema(), indent=2))
 
-generate_from_filename("config_schema.json", "config_schema.html", config=config)
+def _write_keywords_md(app) -> None:
+    src_dir = Path(__file__).parent
+    schema_path = src_dir / "_static" / "everest.schema.json"
+    keywords_md = src_dir / "keywords.md"
 
-data = Path("config_schema.html").read_text(encoding="utf-8")
-data = data.replace("schema_doc.css", "_static/styles/furo.css")
-with open("config_schema.html", "w", encoding="utf-8") as fout:
-    fout.write(data)
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    props = schema.get("properties", {})
+
+    lines = []
+    # Top label and title (MyST label syntax: (label)=)
+    lines += ["(_cha_everest_keyword_reference)=\n"]
+    lines += ["# Keyword reference\n\n"]
+    lines += [
+        "The keywords recognized by the Everest configuration system are described below. "
+        "Each section is linkable; you can reference it from anywhere in the docs.\n\n"
+    ]
+
+    # Local TOC
+    lines += ["```{toctree}\n:hidden:\n```\n\n"]
+    lines += ["```{contents}\n:local:\n:depth: 1\n```\n\n"]
+
+    for name in sorted(props):
+        desc = props[name].get("description", "").rstrip()
+
+        # Create a stable label for cross-referencing from anywhere
+        label = f"(keywords-{name})="
+        lines += [f"{label}\n", f"### {name}\n\n"]
+
+        # Insert the Markdown description verbatim (no escaping)
+        if desc:
+            lines += [desc, "\n\n"]
+
+        # Add the schema table for this property using MyST fenced directive
+        # This directive comes from sphinxcontrib-opendataservices-jsonschema
+        lines += [
+            "```{jsonschema} _static/everest.schema.json\n",
+            f":pointer: /properties/{name}\n",
+            "```\n\n",
+        ]
+
+    keywords_md.write_text("".join(lines), encoding="utf-8")
+
+def setup(app):
+    app.connect("builder-inited", _write_everest_schema)
+    app.connect("builder-inited", _write_keywords_md)
+    return {"parallel_read_safe": True, "parallel_write_safe": True}
 
 # -- General configuration ---------------------------------------------------
 
@@ -81,6 +107,9 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinxarg.ext",
     "everest_jobs",
+    "myst_parser",
+    "sphinxcontrib.jsonschema",
+    "sphinx.ext.autosectionlabel",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -109,6 +138,10 @@ exclude_patterns = []
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"
+
+# Allow autosectionlabel to reference sections in other files
+autosectionlabel_prefix_document = True
+utosectionlabel_maxdepth = 2
 
 
 # -- Options for HTML output -------------------------------------------------
