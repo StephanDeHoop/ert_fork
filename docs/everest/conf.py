@@ -71,7 +71,7 @@ def _write_keywords_md(app) -> None:
 
         # Create a stable label for cross-referencing from anywhere
         label = f"(keywords-{name})="
-        lines += [f"{label}\n", f"### {name}\n\n"]
+        lines += [f"{label}\n", f"## {name}\n\n"]
 
         # Insert the Markdown description verbatim (no escaping)
         if desc:
@@ -142,11 +142,6 @@ exclude_patterns = []
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"
-
-# Allow autosectionlabel to reference sections in other files
-autosectionlabel_prefix_document = True
-utosectionlabel_maxdepth = 2
-
 
 # -- Options for HTML output -------------------------------------------------
 
