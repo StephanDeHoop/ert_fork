@@ -44,15 +44,50 @@ def _write_everest_schema(app) -> None:
     out.write_text(json.dumps(EverestConfig.model_json_schema(), indent=2))
 
 
+def _pointer_and_options_for_property(name: str, spec: dict) -> tuple[str, list[str]]:
+    """
+    Decide the best :pointer: and any extra options for the jsonschema directive.
+    Returns (pointer_str, options_lines).
+    """
+    options: list[str] = []
+
+    t = spec.get("type")
+    # Sometimes Pydantic produces schema with 'items' even if 'type' is missing
+    is_array = t == "array" or ("items" in spec and t is None)
+    if is_array and "items" in spec:
+        # Render the entry schema, not the array container
+        pointer = f"/properties/{name}/items"
+        return pointer, options
+
+    # Map-like objects: arbitrary key -> value pairs
+    # (object with 'additionalProperties' and no explicit 'properties')
+    is_object = t == "object" or (
+        "properties" in spec or "additionalProperties" in spec
+    )
+    has_additional = "additionalProperties" in spec
+    has_properties = "properties" in spec
+    is_map_like = is_object and has_additional and not has_properties
+    if is_map_like:
+        pointer = f"/properties/{name}"
+        # Avoid deep traversal into arbitrary keys (often causes crashes/noise)
+        options.append("   :collapse: additionalProperties")
+        return pointer, options
+
+    # Plain object or everything else: render as-is
+    pointer = f"/properties/{name}"
+    return pointer, options
+
+
 def _write_keywords_md(app) -> None:
     src_dir = Path(__file__).parent
     schema_path = src_dir / "_static" / "everest.schema.json"
     keywords_md = src_dir / "keywords.md"
 
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    props = schema.get("properties", {})
+    props: dict = schema.get("properties", {})
 
-    lines = []
+    lines: list[str] = []
+
     # Top label and title (MyST label syntax: (label)=)
     lines += ["(_cha_everest_keyword_reference)=\n"]
     lines += ["# Keyword reference\n\n"]
@@ -62,28 +97,40 @@ def _write_keywords_md(app) -> None:
         "reference it from anywhere in the docs.\n\n"
     ]
 
-    # Local TOC
-    lines += ["```{toctree}\n:hidden:\n```\n\n"]
-    lines += ["```{contents}\n:local:\n:depth: 1\n```\n\n"]
+    # lines += [
+    #     "```{eval-rst}\n"
+    #     ".. jsonschema:: _static/everest.schema.json\n"
+    #     "  :lift_definitions:\n"
+    #     "  :auto_target:\n"
+    #     "```\n\n"
+    # ]
 
     for name in sorted(props):
-        desc = props[name].get("description", "").rstrip()
+        # if not name == "controls":
+        #     print(f"Processing keyword '{name}'")
+        #     continue
+        prop_spec: dict = props.get(name, {})
+        desc = (prop_spec.get("description") or "").rstrip()
 
-        # Create a stable label for cross-referencing from anywhere
-        label = f"(keywords-{name})="
-        lines += [f"{label}\n", f"## {name}\n\n"]
-
-        # Insert the Markdown description verbatim (no escaping)
+        # Stable per-keyword label + heading
+        lines += [f"(keywords-{name})=\n", f"## {name}\n\n"]
         if desc:
             lines += [desc, "\n\n"]
 
-        # Add the schema table for this property using MyST fenced directive
-        # This directive comes from sphinxcontrib-opendataservices-jsonschema
+        # Decide pointer/options for this keyword
+        pointer, extra_opts = _pointer_and_options_for_property(name, prop_spec)
+
+        # MyST fenced block that evaluates the rST directive
+        print(f"DEBUG:     {pointer}  ----- {extra_opts}")
         lines += [
-            "```{jsonschema} _static/everest.schema.json\n",
-            f":pointer: /properties/{name}\n",
-            "```\n\n",
+            "```{eval-rst}\n",
+            ".. jsonschema:: _static/everest.schema.json#/",
+            pointer.lstrip("/"),
+            "\n",
+            # "  :auto_reference:\n"
         ]
+        lines += [opt + "\n" for opt in extra_opts]
+        lines += ["```\n\n"]
 
     keywords_md.write_text("".join(lines), encoding="utf-8")
 
@@ -112,7 +159,7 @@ extensions = [
     "sphinxarg.ext",
     "everest_jobs",
     "myst_parser",
-    "sphinxcontrib.jsonschema",
+    "sphinx-jsonschema",
     "sphinx.ext.autosectionlabel",
 ]
 
@@ -142,6 +189,16 @@ exclude_patterns = []
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = "sphinx"
+
+autosectionlabel_prefix_document = True
+autosectionlabel_maxdepth = 1
+
+jsonschema_options = {
+    "lift_definitions": True,
+    "auto_target": True,
+    "auto_reference": True,
+    "lift_description": True,
+}
 
 # -- Options for HTML output -------------------------------------------------
 
