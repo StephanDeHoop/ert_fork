@@ -43,6 +43,7 @@ def _write_everest_schema(app) -> None:
     out.parent.mkdir(exist_ok=True)
     out.write_text(json.dumps(EverestConfig.model_json_schema(), indent=2))
 
+
 def _write_keywords_md(app) -> None:
     src_dir = Path(__file__).parent
     schema_path = src_dir / "_static" / "everest.schema.json"
@@ -56,8 +57,9 @@ def _write_keywords_md(app) -> None:
     lines += ["(_cha_everest_keyword_reference)=\n"]
     lines += ["# Keyword reference\n\n"]
     lines += [
-        "The keywords recognized by the Everest configuration system are described below. "
-        "Each section is linkable; you can reference it from anywhere in the docs.\n\n"
+        "The keywords recognized by the Everest configuration system "
+        "are described below. Each section is linkable; you can "
+        "reference it from anywhere in the docs.\n\n"
     ]
 
     # Local TOC
@@ -85,10 +87,12 @@ def _write_keywords_md(app) -> None:
 
     keywords_md.write_text("".join(lines), encoding="utf-8")
 
+
 def setup(app):
     app.connect("builder-inited", _write_everest_schema)
     app.connect("builder-inited", _write_keywords_md)
     return {"parallel_read_safe": True, "parallel_write_safe": True}
+
 
 # -- General configuration ---------------------------------------------------
 
