@@ -144,11 +144,11 @@ def _write_keywords_md(app) -> None:
 
 
 myst_enable_extensions = [
-    "colon_fence",      # to support ::: directives
-    "linkify",          # optional
-    "substitution",     # optional
-    "deflist",          # optional
-    "attrs_inline",     # optional
+    "colon_fence",  # to support ::: directives
+    "linkify",  # optional
+    "substitution",  # optional
+    "deflist",  # optional
+    "attrs_inline",  # optional
 ]
 
 # Optional: default role for bare `code` etc
