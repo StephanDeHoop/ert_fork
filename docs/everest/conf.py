@@ -20,6 +20,8 @@ from everest.config import EverestConfig
 
 sys.path.append(os.path.abspath("_ext"))
 
+from generate_markdown_from_json import render_schema_markdown
+
 # -- Project information -----------------------------------------------------
 
 project = "Everest"
@@ -127,7 +129,7 @@ def _write_keywords_md(app) -> None:
             ".. jsonschema:: _static/everest.schema.json#/",
             pointer.lstrip("/"),
             "\n",
-            # "  :auto_reference:\n"
+            # "   :auto_reference:\n"
         ]
         lines += [opt + "\n" for opt in extra_opts]
         lines += ["```\n\n"]
@@ -135,10 +137,46 @@ def _write_keywords_md(app) -> None:
     keywords_md.write_text("".join(lines), encoding="utf-8")
 
 
+# def setup(app):
+#     app.connect("builder-inited", _write_everest_schema)
+#     # app.connect("builder-inited", _write_keywords_md)
+#     return {"parallel_read_safe": True, "parallel_write_safe": True}
+
+
+myst_enable_extensions = [
+    "colon_fence",      # to support ::: directives
+    "linkify",          # optional
+    "substitution",     # optional
+    "deflist",          # optional
+    "attrs_inline",     # optional
+]
+
+# Optional: default role for bare `code` etc
+myst_heading_anchors = 6  # ensure MyST generates anchors up to H6
+
+
+def _generate_config_reference(app):
+    """
+    Import your Pydantic model, get its schema, render to MyST Markdown,
+    and write docs/reference/keywords.md
+    """
+    schema = EverestConfig.model_json_schema()
+
+    md = render_schema_markdown(
+        schema,
+        title=schema.get("title") or "Configuration Reference",
+        root_id=schema.get("title") or "config",
+        page_caption="Configuration keyword reference",
+    )
+
+    out_path = Path(__file__).parent / "keywords.md"
+    out_path.write_text(md, encoding="utf-8")
+    app.info(f"[schema] wrote {out_path}") if hasattr(app, "info") else None
+
+
 def setup(app):
-    app.connect("builder-inited", _write_everest_schema)
-    app.connect("builder-inited", _write_keywords_md)
-    return {"parallel_read_safe": True, "parallel_write_safe": True}
+    app.connect("builder-inited", _generate_config_reference)
+    return {"version": "1.0", "parallel_read_safe": True}
 
 
 # -- General configuration ---------------------------------------------------
@@ -153,7 +191,9 @@ def setup(app):
 extensions = [
     "sphinx_copybutton",
     "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
+    "sphinxcontrib.autodoc_pydantic",
     "sphinx.ext.ifconfig",
     "sphinx.ext.viewcode",
     "sphinxarg.ext",
@@ -192,6 +232,7 @@ pygments_style = "sphinx"
 
 autosectionlabel_prefix_document = True
 autosectionlabel_maxdepth = 1
+autosummary_generate = True  # if you use autosummary pages
 
 jsonschema_options = {
     "lift_definitions": True,
@@ -199,6 +240,24 @@ jsonschema_options = {
     "auto_reference": True,
     "lift_description": True,
 }
+
+# Show just fields (nice summary + per-field sections)
+autodoc_pydantic_model_show_field_summary = True
+
+# Hide validators entirely (no section, no “Validated by:” lines)
+autodoc_pydantic_model_show_validator_summary = False
+autodoc_pydantic_model_show_validator_members = False
+autodoc_pydantic_field_list_validators = False
+
+# Hide config/JSON schema blocks unless you explicitly need them
+autodoc_pydantic_model_show_config_summary = False
+autodoc_pydantic_model_show_json = False
+# autodoc_pydantic_model_members = False
+
+# Hide the long constructor param list in the class header
+autodoc_pydantic_model_hide_paramlist = True
+
+# autodoc_default_options = {"members": False}  # or remove 'members' entirely
 
 # -- Options for HTML output -------------------------------------------------
 
